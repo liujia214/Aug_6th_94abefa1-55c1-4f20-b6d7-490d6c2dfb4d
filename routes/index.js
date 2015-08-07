@@ -23,6 +23,7 @@ router.post('/imap',function(req,res) {
 
 router.get('/update/:id',function(req,res){
   console.log(req.params.id);
+  console.log(imap.obj[req.params.id]);
   res.status(200).json(imap.obj[req.params.id]);
 });
 
