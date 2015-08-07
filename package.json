@@ -16,5 +16,8 @@
     "serve-favicon": "~2.3.0",
     "util": "^0.10.3",
     "uuid": "^2.0.1"
+  },
+  "devDependencies": {
+    "highcharts": "0.0.8"
   }
 }
