@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href="/stylesheets/style.css" />
+    <script src="/jquery/dist/jquery.js"></script>
+    <script src="/js/ajax.js"></script>
+    <script src="http://code.highcharts.com/highcharts.js"></script>
+    <script src="http://code.highcharts.com/modules/exporting.js"></script>
+    <style>
+      div{
+        display: inline-block;
+        box-sizing: border-box;
+        border: 1px solid black;
+      }
+      section{
+        margin-bottom: 50px;
+      }
+    </style>
+    <script>
+      $(function () {
+
+        var seen,unseen,attach,unattach,mime,mimearray=[];
+        function render(){
+          console.log('render start!');
+          $('#container').highcharts({
+            chart: {
+              plotBackgroundColor: null,
+              plotBorderWidth: null,
+              plotShadow: false,
+              type: 'pie'
+            },
+            title: {
+              text: 'Unread VS read Email'
+            },
+            tooltip: {
+              pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+            },
+            plotOptions: {
+              pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                  enabled: true,
+                  format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                  style: {
+                    color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                  }
+                }
+              }
+            },
+            series: [{
+              name: "Brands",
+              colorByPoint: true,
+              data: [{
+                name: "Seen Email",
+                y:seen
+              }, {
+                name: "Unseen Email",
+                y: unseen,
+                sliced: true,
+                selected: true
+              }]
+            }]
+          });
+          $('#attachment').highcharts({
+            chart: {
+              plotBackgroundColor: null,
+              plotBorderWidth: null,
+              plotShadow: false,
+              type: 'pie'
+            },
+            title: {
+              text: 'Email with attachment VS Email without attachment'
+            },
+            tooltip: {
+              pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+            },
+            plotOptions: {
+              pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                  enabled: true,
+                  format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                  style: {
+                    color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                  }
+                }
+              }
+            },
+            series: [{
+              name: "Brands",
+              colorByPoint: true,
+              data: [{
+                name: "Email with attachment",
+                y:attach
+              }, {
+                name: "Email without attachment",
+                y: unattach,
+                sliced: true,
+                selected: true
+              }]
+            }]
+          });
+          $('#mimetype').highcharts({
+            chart: {
+              plotBackgroundColor: null,
+              plotBorderWidth: null,
+              plotShadow: false,
+              type: 'pie'
+            },
+            title: {
+              text: 'MIME Type of Attachment'
+            },
+            tooltip: {
+              pointFormat: '{series.name}: <b>{point.percentage:.1f}%</b>'
+            },
+            plotOptions: {
+              pie: {
+                allowPointSelect: true,
+                cursor: 'pointer',
+                dataLabels: {
+                  enabled: true,
+                  format: '<b>{point.name}</b>: {point.percentage:.1f} %',
+                  style: {
+                    color: (Highcharts.theme && Highcharts.theme.contrastTextColor) || 'black'
+                  }
+                }
+              }
+            },
+            series: [{
+              name: "Brands",
+              colorByPoint: true,
+              data: mimearray
+            }]
+          });
+        }
+
+
+        $('input[type="submit"]').on('click',function(event){
+          event.preventDefault();
+          var email = $('input[type="email"]').val();
+          var password = $('input[type="password"]').val();
+
+          var obj = {user:email,password:password};
+
+          var promise = ajax('post','/imap',obj);
+          promise.then(function(data){
+            polling(JSON.parse(data).url);
+          });
+        })
+
+
+        function polling(url){
+
+          var id = setInterval(function(){
+            $.getJSON(url,function(data){
+              console.log('pls waiting....');
+
+              if(data.status === 'complete'){
+                clearInterval(id);
+                console.log('process end!');
+
+                seen = data.seen;
+                unseen = data.unseen;
+                attach = data.attach;
+                unattach = data.unattach;
+                mime = data.mime;
+
+
+                console.log(mime);
+                //push mime type into chart
+                for(var i in mime){
+                  var obj = {};
+                  obj.name = i;
+                  obj.y = mime[i];
+                  mimearray.push(obj);
+                }
+                render();
+
+              }
+            })
+          },5000);
+        }
+
+      });
+    </script>
+  </head>
+  <body>
+    <section>
+      <h1><%= title %></h1>
+      <p>Welcome to <%= title %></p>
+
+      <br><br>
+      <label for="email">EMAIL:</label>
+      <input id="email" type="email">
+      <label for="pass">PASSWORD:</label>
+      <input id="pass" type="password">
+      <input type="submit">
+    </section>
+
+    <section>
+      <div id="container" style="min-width: 310px; width:33%;height: 400px; max-width: 800px; margin: 0 auto"></div>
+      <div id="attachment" style="min-width: 310px;  width:33%;height: 400px; max-width: 800px; margin: 0 auto"></div>
+      <div id="mimetype" style="min-width: 310px;  width:33%;height: 400px; max-width: 800px; margin: 0 auto"></div>
+    </section>
+
+  </body>
+</html>
