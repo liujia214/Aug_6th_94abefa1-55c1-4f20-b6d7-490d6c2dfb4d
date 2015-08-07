@@ -23,8 +23,8 @@ function connection(user,password,id){
         openInbox(function(err, box) {
 
             if (err) throw err;
-            getReadEmail();  //get read email and unread email
-            getAttachEmail('1:'+box.messages.total,box.messages.total); //get email number with attachment and mime type
+            getReadEmail('August 01,2015');  //get read email and unread email
+            getAttachEmail('August 01,2015'); //get email number with attachment and mime type
 
         });
 
@@ -46,13 +46,13 @@ function connection(user,password,id){
     }
 
 
-    function getReadEmail(){
-        imap.search(['SEEN'], function(err, results) {
+    function getReadEmail(date){
+        imap.search(['SEEN',['SINCE',date]], function(err, results) {
             console.log('SEEN EMAIL:'+results.length);
             obj[id].seen = results.length;
             if (err) throw err;
         });
-        imap.search(['UNSEEN'], function(err, results) {
+        imap.search(['UNSEEN',['SINCE',date]], function(err, results) {
             console.log('UNSEEN EMAIL:'+results.length);
             obj[id].unseen = results.length;
             if (err) throw err;
@@ -61,69 +61,72 @@ function connection(user,password,id){
 
 
 
-    function getAttachEmail(range,totalemail){
+    function getAttachEmail(date){
         var count = 0;
         var mime = {};
-        var f = imap.seq.fetch(range, { bodies: 'TEXT',struct:true });
-        f.on('message', function(msg, seqno) {
-            //console.log('Message #%d', seqno);
-            var attachment = 0;
-            var prefix = '(#' + seqno + ') ';
-            msg.on('body', function(stream, info) {
-                stream.once('end', function() {
-                    if (info.which !== 'TEXT')
-                        console.log(prefix + 'Parsed header: %s', inspect(Imap.parseHeader(buffer)));
-                    else
-                        console.log(prefix + 'Body [%s] Finished', inspect(info.which));
+        imap.search(['ALL',['SINCE',date]],function(err,results){
+            var f = imap.fetch(results, { bodies: 'TEXT',struct:true });
+            f.on('message', function(msg, seqno) {
+                console.log('Message #%d', seqno);
+                var attachment = 0;
+                var prefix = '(#' + seqno + ') ';
+                msg.on('body', function(stream, info) {
+                    stream.once('end', function() {
+                        if (info.which !== 'TEXT')
+                            console.log(prefix + 'Parsed header: %s', inspect(Imap.parseHeader(buffer)));
+                        else
+                            console.log(prefix + 'Body [%s] Finished', inspect(info.which));
+                    });
                 });
-            });
-            msg.once('attributes', function(attrs) {
+                msg.once('attributes', function(attrs) {
 
-                function checkStruct(ele){
-                    if(Array.isArray(ele)){
-                        ele.forEach(checkStruct);
-                    }else{
-                        if(ele.disposition !== null && ele.disposition.type.toLowerCase() === 'attachment'){
-                            attachment++;
-                            if(mime.hasOwnProperty(ele.subtype)){
-                                console.log('hasproperty');
-                                mime[ele.subtype] += 1;
-                            }else{
-                                console.log('new propperty');
-                                Object.defineProperty(mime,ele.subtype,{writable:true,enumerable:true,configurable:true,value:1});
+                    function checkStruct(ele){
+                        if(Array.isArray(ele)){
+                            ele.forEach(checkStruct);
+                        }else{
+                            if(ele.disposition !== null && ele.disposition.type.toLowerCase() === 'attachment'){
+                                attachment++;
+                                if(mime.hasOwnProperty(ele.subtype)){
+                                    console.log('hasproperty');
+                                    mime[ele.subtype] += 1;
+                                }else{
+                                    console.log('new propperty');
+                                    Object.defineProperty(mime,ele.subtype,{writable:true,enumerable:true,configurable:true,value:1});
+                                }
                             }
                         }
                     }
-                }
 
-                var struct = attrs.struct;
-                checkStruct(struct);
-                if(attachment > 0){
-                    console.log(prefix + ' has '+attachment +' attachment');
-                    count++
-                }
+                    var struct = attrs.struct;
+                    checkStruct(struct);
+                    if(attachment > 0){
+                        console.log(prefix + ' has '+attachment +' attachment');
+                        count++
+                    }
 
+                });
+
+                msg.once('end', function() {
+                    console.log(prefix + 'Finished');
+
+                });
             });
-
-            msg.once('end', function() {
-                console.log(prefix + 'Finished');
-
+            f.once('error', function(err) {
+                console.log('Fetch error: ' + err);
+            });
+            f.once('end', function() {
+                console.log('Done fetching all messages!');
+                console.log('Emails with attachment:'+count);
+                console.log('Emails without attachment:'+(results.length-count));
+                console.log(mime);
+                obj[id].attach = count;
+                obj[id].unattach = results.length - count;
+                obj[id].mime = mime;
+                obj[id].status = 'complete';
+                imap.end();
             });
         });
-        f.once('error', function(err) {
-            console.log('Fetch error: ' + err);
-        });
-        f.once('end', function() {
-            console.log('Done fetching all messages!');
-            console.log('Emails with attachment:'+count);
-            console.log('Emails without attachment:'+(totalemail-count));
-            console.log(mime);
-            obj[id].attach = count;
-            obj[id].unattach = totalemail - count;
-            obj[id].mime = mime;
-            obj[id].status = 'complete';
-            imap.end();
-        });
+
     }
 
 }
