@@ -156,7 +156,7 @@
           var id = setInterval(function(){
             $.getJSON(url,function(data){
               console.log('pls waiting....');
-
+              console.log(data);
               if(data.status === 'complete'){
                 clearInterval(id);
                 console.log('process end!');
